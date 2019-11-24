@@ -78,13 +78,15 @@ class Spot(object):
         currentTrack = self.getCurrentTrack()
         if currentTrack is None:
             return
+        # if current track is still in playlist:
+        # print("Removing {} by {}.".format(currentTrack[1], currentTrack[2]))
 
-        print("Removing {} by {}.".format(currentTrack[1], currentTrack[2]))
         self.client.user_playlist_remove_all_occurrences_of_tracks(
             self.username,
             self.playlist,
             [currentTrack[0]]
         )
+
 
     def singleQuery(self, query=None):
         try:

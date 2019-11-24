@@ -3,9 +3,9 @@ import time
 
 spotQueue = Spot()
 programActive = True
+print("webMonitor active!")
 
 while programActive:
-    print("webMonitor active!")
     # Monitor playback every 5 seconds
     try:
         currentTrack = spotQueue.getCurrentTrack()
@@ -14,7 +14,7 @@ while programActive:
         if currentTrack is not None and currentPlaybackIsQueue:
             # print("removing track")
             spotQueue.removeCurrentSongFromQueue()
-        time.sleep(20)
+        time.sleep(10)
     except KeyboardInterrupt:
         print("Closing program. Goodbye!")
         programActive = False
