@@ -53,7 +53,10 @@ class Spot(object):
                 self.authenticate()
 
     def isCurrentPlaybackQueueList(self):
-        playbackContext = self.client.current_playback()['context']
+        currentPlayback = self.client.current_playback()
+        if currentPlayback is None:
+            return None
+        playbackContext = currentPlayback['context']
         if playbackContext is None:
             return False
         if playbackContext['type'] != 'playlist':
@@ -61,6 +64,11 @@ class Spot(object):
         return self.playlist[8:] in playbackContext['uri']
 
     def getCurrentTrack(self):
+        currentPlayback = self.client.current_playback()
+        if currentPlayback is None:
+            return None
+        if currentPlayback['item'] is None:
+            return None
         return self.client.current_playback()['item']['uri']
 
     def removeCurrentSongFromQueue(self):
