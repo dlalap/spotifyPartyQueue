@@ -1,5 +1,6 @@
-import spotipy
+import spotipy as spotipy
 import spotipy.util as util
+
 
 class Spot(object):
     def __init__(self, username=None, scope=None, playlist=None):
@@ -11,7 +12,9 @@ class Spot(object):
         if scope is None:
             self.scope = 'user-library-read \
                         playlist-modify-public \
-                        playlist-modify-private'
+                        playlist-modify-private \
+                        user-read-playback-state \
+                        user-read-currently-playing'
         else:
             self.scope = scope
 
@@ -29,6 +32,7 @@ class Spot(object):
         )
 
         self.sp = spotipy.Spotify(auth=self.token)
+        self.client = spotipy.client.Spotify(auth=self.token)
 
     def startService(self):
         while True:
@@ -47,6 +51,24 @@ class Spot(object):
             except spotipy.SpotifyException:
                 print("Session expired. Re-authenticating...")
                 self.authenticate()
+
+    def isCurrentPlaybackQueueList(self):
+        playbackContext = self.client.current_playback()['context']
+        if playbackContext is None:
+            return False
+        if playbackContext['type'] != 'playlist':
+            return False
+        return self.playlist[8:] in playbackContext['uri']
+
+    def getCurrentTrack(self):
+        return self.client.current_playback()['item']['uri']
+
+    def removeCurrentSongFromQueue(self):
+        self.client.user_playlist_remove_all_occurrences_of_tracks(
+            self.username,
+            self.playlist,
+            [self.getCurrentTrack()]
+        )
 
     def singleQuery(self, query=None):
         try:
