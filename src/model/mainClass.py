@@ -69,13 +69,21 @@ class Spot(object):
             return None
         if currentPlayback['item'] is None:
             return None
-        return self.client.current_playback()['item']['uri']
+        
+        songName = currentPlayback['item']['name']
+        songArtist = currentPlayback['item']['artists'][0]['name']
+        return [currentPlayback['item']['uri'], songName, songArtist]
 
     def removeCurrentSongFromQueue(self):
+        currentTrack = self.getCurrentTrack()
+        if currentTrack is None:
+            return
+
+        print("Removing {} by {}.".format(currentTrack[1], currentTrack[2]))
         self.client.user_playlist_remove_all_occurrences_of_tracks(
             self.username,
             self.playlist,
-            [self.getCurrentTrack()]
+            [currentTrack[0]]
         )
 
     def singleQuery(self, query=None):
