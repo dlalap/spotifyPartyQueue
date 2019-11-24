@@ -5,6 +5,7 @@ spotQueue = Spot()
 programActive = True
 
 while programActive:
+    print("webMonitor active!")
     # Monitor playback every 5 seconds
     try:
         currentTrack = spotQueue.getCurrentTrack()
@@ -14,6 +15,9 @@ while programActive:
             # print("removing track")
             spotQueue.removeCurrentSongFromQueue()
         time.sleep(20)
+    except KeyboardInterrupt:
+        print("Closing program. Goodbye!")
+        programActive = False
     except Exception as e:
         print("Encountered error: {}".format(e))
         programActive = False
