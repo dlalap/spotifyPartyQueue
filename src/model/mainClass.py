@@ -1,5 +1,6 @@
 import spotipy as spotipy
 import spotipy.util as util
+from threading import Timer
 
 
 class Spot(object):
@@ -14,6 +15,7 @@ class Spot(object):
                         playlist-modify-public \
                         playlist-modify-private \
                         user-read-playback-state \
+                        streaming \
                         user-read-currently-playing'
         else:
             self.scope = scope
@@ -22,7 +24,8 @@ class Spot(object):
             self.playlist = 'spotify:playlist:7yBrFRm2xPvRpe8PM81Os0'
         else:
             self.playlist = playlist
-
+        self.songMonitorActive = False
+        self.timerActive = False
         self.authenticate()
 
     def authenticate(self):
@@ -36,7 +39,9 @@ class Spot(object):
 
     def startService(self):
         while True:
-            searchTerms = input('Search a song, artist, or playlist from Spotify: ')
+            searchTerms = input(
+                'Search a song, artist, or playlist from Spotify: '
+            )
 
             try:
                 results = self.sp.search(searchTerms, limit=1)
@@ -61,6 +66,7 @@ class Spot(object):
             return False
         if playbackContext['type'] != 'playlist':
             return False
+
         return self.playlist[8:] in playbackContext['uri']
 
     def getCurrentTrack(self):
@@ -73,6 +79,49 @@ class Spot(object):
         songName = currentPlayback['item']['name']
         songArtist = currentPlayback['item']['artists'][0]['name']
         return [currentPlayback['item']['uri'], songName, songArtist]
+
+    def monitorForCurrentSongOnQueue(self):
+        try:
+            currentPlayback = self.client.current_playback()
+            if currentPlayback is not None:
+                is_playing = currentPlayback.get('is_playing', False)
+                if not is_playing:
+                    self.client.start_playback()
+                currentTrack = self.getCurrentTrack()
+                currentPlaybackIsInQueue = self.isCurrentPlaybackQueueList()
+
+                if currentTrack is not None and currentPlaybackIsInQueue:
+                    print(
+                        f'REMOVING {currentTrack} FROM PLAYLIST.'
+                    )
+                    self.removeCurrentSongFromQueue()
+            else:
+                print("No current playback.")
+            if self.songMonitorActive:
+                self.t = Timer(10.0, self.monitorForCurrentSongOnQueue)
+                self.t.start()
+        except Exception as e:
+            print(f"Encountered error: {e}")
+
+        except spotipy.SpotifyException:
+            print("Session expired. Re-authenticating.")
+            self.authenticate()
+
+    def toggleSongMonitor(self):
+        try:
+            self.songMonitorActive = not self.songMonitorActive
+            print(
+                f'self.songMonitorActive is now {self.songMonitorActive}.'
+            )
+            if self.songMonitorActive:
+                self.monitorForCurrentSongOnQueue()
+            else:
+                self.t.cancel()
+            return self.songMonitorActive
+
+        except spotipy.SpotifyException:
+            print("Session expired. Re-authenticating.")
+            self.authenticate()
 
     def removeCurrentSongFromQueue(self):
         currentTrack = self.getCurrentTrack()
@@ -87,24 +136,43 @@ class Spot(object):
             [currentTrack[0]]
         )
 
+    def NextSong(self):
+        self.client.next_track()
+
+    def SayHi(self):
+        print('Hello!')
+        if self.timerActive:
+            self.t = Timer(2.0, self.SayHi)
+            self.t.start()
+
+    def ToggleTimer(self):
+        self.timerActive = not self.timerActive
+        print(
+            f'self.timerActive is now {self.timerActive}.'
+        )
+        if self.timerActive:
+            self.SayHi()
+        else:
+            self.t.cancel()
 
     def singleQuery(self, query=None):
         try:
             if query is not None:
                 results = self.sp.search(query, limit=1)
-                song = results['tracks']['items'][0]['uri']
-                songName = results['tracks']['items'][0]['name']
-                songArtist = results['tracks']['items'][0]['artists'][0]['name']
+                firstResult = results['tracks']['items'][0]
+                song = firstResult['uri']
+                songName = firstResult['name']
+                songArtist = firstResult['artists'][0]['name']
                 # print("Adding {} by {} to playlist.".format(
                 #     songName, songArtist
                 #     ))
-                returnMessage = ("Adding {} by {} to playlist.".format(
-                    songName, songArtist
-                    ))
+                returnMessage = (
+                    f"Adding {songName} by {songArtist} to playlist."
+                )
                 self.sp.user_playlist_add_tracks(
                     self.username, self.playlist, [song]
                 )
-                return returnMessage
+                return firstResult
             else:
                 pass
         except IndexError:
