@@ -155,28 +155,65 @@ class Spot(object):
         else:
             self.t.cancel()
 
-    def singleQuery(self, query=None):
+    def getFirstResult(self, results):
+        return results['tracks']['items'][0]
+
+    def getSongData(self, result):
+        uri = result['uri']
+        songName = result['name']
+        songArtist = result['artists'][0]['name']
+        message = (
+                f'Adding {songName} by {songArtist} to playlist.'
+                )
+        return message
+
+    def reportSongAddedToPlaylist(self, queryResult):
+        song = queryResult['uri']
+        songName = queryResult['name']
+        firstArtist = queryResult['artists'][0]['name']
+        message = (
+                f'Adding {songName} by {firstArtist} to playlist.'
+                )
+        return message
+
+    def addSongsToPlaylist(self, songs):
+        self.sp.user_playlist_add_tracks(
+                self.username, self.playlist, [songs]
+                )
+
+    def callQuery(self, query=None, numResults=1):
         try:
-            if query is not None:
-                results = self.sp.search(query, limit=1)
-                firstResult = results['tracks']['items'][0]
-                song = firstResult['uri']
-                songName = firstResult['name']
-                songArtist = firstResult['artists'][0]['name']
-                # print("Adding {} by {} to playlist.".format(
-                #     songName, songArtist
-                #     ))
-                returnMessage = (
-                    f"Adding {songName} by {songArtist} to playlist."
-                )
-                self.sp.user_playlist_add_tracks(
-                    self.username, self.playlist, [song]
-                )
-                return firstResult
+            if numResults < 1:
+                raise Exception(f"Invalid numResults: {numResults}")
+
+            if numResults == 1:
+                self.singleQuery(query)
+
             else:
-                pass
+                self.multiQuery(query, limit=numResults)
+
         except IndexError:
             print("No results.")
         except spotipy.SpotifyException:
             print("Session expired. Re-authenticating.")
             self.authenticate()
+
+    def singleQuery(self, query=None):
+        if query is not None:
+            results = self.sp.search(query, limit=1)
+            firstResult = self.getFirstResult(results)
+            song = firstResult['uri']
+            returnMessage = self.reportSongAddedToPlaylist(firstResult)
+            self.addSongsToPlaylist(song)
+            #songName = firstResult['name']
+            #songArtist = firstResult['artists'][0]['name']
+            #returnMessage = (
+            #    f"Adding {songName} by {songArtist} to playlist."
+            #)
+            #self.sp.user_playlist_add_tracks(
+            #    self.username, self.playlist, [song]
+            #)
+            return firstResult
+        else:
+            pass
+ 
