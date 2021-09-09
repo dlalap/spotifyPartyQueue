@@ -1,8 +1,15 @@
+#%% Import libraries 
+import sys
+
+sys.path.insert(0, "C:\\Users\\deanl\\source\\repos\\spotifyPartyQueue\\src\\spotenv\\bin\\activate")
+sys.path.insert(0, "C:\\Users\\deanl\\source\\repos\\spotifyPartyQueue\\src\\.env")
 import spotipy as spotipy
 import spotipy.util as util
 from threading import Timer
 
-
+#%% Start Interactive
+print('hello')
+#%%
 class Spot(object):
     def __init__(self, username=None, scope=None, playlist=None):
         if username is None:
@@ -181,16 +188,21 @@ class Spot(object):
                 self.username, self.playlist, [songs]
                 )
 
-    def callQuery(self, query=None, numResults=1):
+    def callQuery(self, query, numResults=1):
+        """
+        Takes song query and returns results.
+        If numResults is 1, runs an "I'm feeling lucky" type search
+            where the first result is added to the playlist.
+        """
         try:
             if numResults < 1:
                 raise Exception(f"Invalid numResults: {numResults}")
 
             if numResults == 1:
-                self.singleQuery(query)
+                return self.singleQuery(query)
 
             else:
-                self.multiQuery(query, limit=numResults)
+                return self.multiQuery(query, limit=numResults)
 
         except IndexError:
             print("No results.")
@@ -198,22 +210,49 @@ class Spot(object):
             print("Session expired. Re-authenticating.")
             self.authenticate()
 
-    def singleQuery(self, query=None):
-        if query is not None:
-            results = self.sp.search(query, limit=1)
-            firstResult = self.getFirstResult(results)
-            song = firstResult['uri']
-            returnMessage = self.reportSongAddedToPlaylist(firstResult)
-            self.addSongsToPlaylist(song)
-            #songName = firstResult['name']
-            #songArtist = firstResult['artists'][0]['name']
-            #returnMessage = (
-            #    f"Adding {songName} by {songArtist} to playlist."
-            #)
-            #self.sp.user_playlist_add_tracks(
-            #    self.username, self.playlist, [song]
-            #)
-            return firstResult
-        else:
-            pass
+    def singleQuery(self, query):
+        """
+        'I'm feeling lucky' style search query.
+            Adds first result to the playlist.
+        """
+        results = self.sp.search(query, limit=1)
+        firstResult = self.getFirstResult(results)
+        song = firstResult['uri']
+        returnMessage = self.reportSongAddedToPlaylist(firstResult)
+        self.addSongsToPlaylist(song)
+        #songName = firstResult['name']
+        #songArtist = firstResult['artists'][0]['name']
+        #returnMessage = (
+        #    f"Adding {songName} by {songArtist} to playlist."
+        #)
+        #self.sp.user_playlist_add_tracks(
+        #    self.username, self.playlist, [song]
+        #)
+        return firstResult
  
+    def multiQuery(self, query, limit):
+        """
+        Lists results up to number defined by limit.
+        Result list sent to user so user can choose based on list.
+        """
+        results = self.sp.search(query, limit)
+        resultLists = results['tracks']['items']
+        return resultLists
+
+    def listAllArtistsInResult(self, result):
+        """
+        Lists all artists within a result.
+        """
+        artistList = [a['name'] for a in result['artists']]
+        artistList = ', '.join(artistList)
+        return artistList
+
+    def listSongNameAndArtists(self, resultList, initIndex=0):
+        """
+        Lists the song name and artists associated in all results in list.
+        """
+        stringToReturn = ''        
+        for r in range(len(resultList)):
+            stringToReturn += f"{r + initIndex + 1}) {resultList[r]['name']} by {self.listAllArtistsInResult(resultList[r])}\n"
+
+        return stringToReturn
