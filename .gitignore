@@ -2,3 +2,5 @@
 .vscode
 .prettierignore
 spotenv/
+get-pip.py
+.cache-dean.lalap
