@@ -116,7 +116,10 @@ def incoming_sms():
         currentUser.set_search_results(query)
 
         msg = spotQueue.listSongNameAndArtists(currentUser.get_search_results_range(0, 5))
-        msg += "\n Press 0 for more results"
+        if len(currentUser.get_search_results()) > 5:
+            msg += "\n Press 0 for more results"
+        else:
+            msg += "\n No more results"
         resp = MessagingResponse()
         resp.message(msg)
         return str(resp)

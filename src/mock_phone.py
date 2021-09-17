@@ -5,7 +5,7 @@ import requests
 # %% Mock SMS Phone
 def sendSms(message):
     response = requests.post(
-        f'http://0.0.0.0:1812/sms?Body={message}'
+        f'https://150e-192-109-205-162.ngrok.io/sms?Body={message}'
     )
     print(f'Response: {response.text}')
 # %% Main loop

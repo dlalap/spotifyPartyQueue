@@ -33,8 +33,10 @@ class Spot(object):
             self.playlist = playlist
         self.songMonitorActive = False
         self.timerActive = False
+        self.playlistContent = []
         self.t = Timer(10.0, self.monitorForCurrentSongOnQueue)
         self.authenticate()
+        self.syncLocalPlaylist()
 
     def authenticate(self):
         self.token = util.prompt_for_user_token(
@@ -98,13 +100,8 @@ class Spot(object):
         if current_song is None:
             return False
 
-        playlist = self.get_queue_playlist()
-        playlist_uri_list = [p['track']['uri'] for p in playlist['tracks']['items']]
-        print(f'current_song[0] in playlist_uri_list: {current_song[0] in playlist_uri_list}')
-
-        print(f'current_song[0] = {current_song[0]}')
-        print(f'playlist_uri_list = {playlist_uri_list}')
-        return current_song[0] in playlist_uri_list
+        print(f'current_song[0] in self.playlistContent: {current_song[0] in self.playlistContent}')
+        return current_song[0] in self.playlistContent
 
     def isCurrentPlaybackQueueList(self):
         currentPlayback = self.get_current_playback()
@@ -115,11 +112,12 @@ class Spot(object):
             return False
         if playbackContext['type'] != 'playlist':
             return False
-
+        
         # print(f'current playback: {currentPlayback}')
-        # print(f'Target playlist: {self.playlist[8:]}')
+        # print(f'Target playlist: {self.playlist}')
         # print(f'Current playlist: {playbackContext["uri"]}')
-        return self.playlist[8:] in playbackContext['uri']
+        # print(f'self.playlist in playbackContext["uri"]: {self.playlist in playbackContext["uri"]}')
+        return self.playlist in playbackContext['uri']
 
     def getCurrentTrack(self):
         currentPlayback = self.get_current_playback()
@@ -132,50 +130,73 @@ class Spot(object):
         songArtist = currentPlayback['item']['artists'][0]['name']
         return [currentPlayback['item']['uri'], songName, songArtist]
 
+    def isPlaying(self, track):
+        """
+            Checks if a track is playing or not.
+                Current timestamp equaling the max timestamp
+                institutes as 'not playing.'
+        """
+        if track.get('is_playing', False):
+            if track['item'] is None:
+                return False
+            return not self.trackIsDone(track)
+        return False
+
+    def trackIsDone(self, track):
+        if track['item'] is None:
+            return True
+        current_timestamp = track['progress_ms']
+        max_timestamp = track['item']['duration_ms']
+        return current_timestamp >= max_timestamp
+
+    def resumeFromQueuePlaylist(self, track):
+        if not self.isCurrentPlaybackQueueList():
+            self.client.start_playback(context_uri=self.playlist)
+        elif self.trackIsDone(track):
+            return
+        elif not self.isPlaying(track):
+            self.client.start_playback()
+        self.removeSongFromQueue(track)
+
     def monitorForCurrentSongOnQueue(self):
         try:
             currentPlayback = self.get_current_playback()
+            
+            # If the song is selected,
+            #   If we're currently playing from the playbackQueue list:
+            #       If song selected is not playing:
+            #           Start playback from the playbackQueue.
+            #       Remove from the queue.
+            #   Else (we assume song playing is not from the playbackQueue list)
+            #       Start playback from the playbackQueue
+            if currentPlayback is None:
+                self.client.start_playback(context_uri=self.playlist)
                 
-            if currentPlayback is not None:
-                if self.isCurrentPlaybackQueueList():
-                    is_playing = self.isPlaying(currentPlayback)
-                    if not is_playing:
-                        # firstTrack = self.get_first_item_in_playlist()
-                        self.client.start_playback(context_uri=self.playlist)
-                    self.removeTrackIfPlaying()
-                else:    
-                    self.client.start_playback(context_uri=self.playlist)
-
             else:
-                print("No current playback.")
-            if self.songMonitorActive:
-                self.t = Timer(10.0, self.monitorForCurrentSongOnQueue)
-                self.t.start()
-        except Exception as e:
-            print(f"Encountered error: {e}")
+                self.resumeFromQueuePlaylist(currentPlayback)
+                # if self.isCurrentPlaybackQueueList():
+                #     if not self.isPlaying(currentPlayback):
+                #         self.client.start_playback(context_uri=self.playlist)
+                #     self.removeSongFromQueue(currentPlayback)
+                # else:    
+                #     self.client.start_playback(context_uri=self.playlist)
+
+            # else:
+            #     print("No current playback.")
+            self.restartMonitor()
 
         except spotipy.SpotifyException:
             print("Session expired. Re-authenticating.")
             self.authenticate()
+            self.restartMonitor()
 
-    def isPlaying(self, current_playback):
-        if current_playback.get('is_playing', False):
-            if current_playback['item'] is None:
-                return False
-            current_timestamp = current_playback['progress_ms']
-            max_timestamp = current_playback['item']['duration_ms']
-            return current_timestamp < max_timestamp
-        return False
+        except Exception as e:
+            print(f"Encountered error: {e}")
 
-    def removeTrackIfPlaying(self):
-        currentTrack = self.getCurrentTrack()
-        currentPlaybackIsInQueue = self.isCurrentSongInQueueList()
-
-        if currentTrack is not None and currentPlaybackIsInQueue:
-            print(
-                f'REMOVING {currentTrack} FROM PLAYLIST.'
-            )
-            self.removeCurrentSongFromQueue()
+    def restartMonitor(self):
+        if self.songMonitorActive:
+            self.t = Timer(10.0, self.monitorForCurrentSongOnQueue)
+            self.t.start()
 
     def toggleSongMonitor(self):
         try:
@@ -193,18 +214,24 @@ class Spot(object):
             print("Session expired. Re-authenticating.")
             self.authenticate()
 
-    def removeCurrentSongFromQueue(self):
-        currentTrack = self.getCurrentTrack()
-        if currentTrack is None:
-            return
-        # if current track is still in playlist:
-        # print("Removing {} by {}.".format(currentTrack[1], currentTrack[2]))
+    def removeSongFromQueue(self, track):
+
+        track_url = track["item"]["uri"]
+
+        print(f'track_url = {track_url}')
+        print(f'self.playlistContent = {self.playlistContent}')
+        if track_url not in self.playlistContent:
+            print(f'track {track_url} not found in self.playlistContent: {self.playlistContent}')
+            return None
 
         self.client.user_playlist_remove_all_occurrences_of_tracks(
             self.username,
             self.playlist,
-            [currentTrack[0]]
+            [track_url]
         )
+
+        while track_url in self.playlistContent:
+            self.playlistContent.remove(track_url)
 
     def NextSong(self):
         self.client.next_track()
@@ -250,6 +277,14 @@ class Spot(object):
         self.sp.user_playlist_add_tracks(
                 self.username, self.playlist, [songs]
                 )
+        self.playlistContent.append(songs)
+
+    def syncLocalPlaylist(self):
+        # Check playlist for current songs
+        # Synchronize self.playlistContent with current list
+        playlist = self.get_queue_playlist()
+        playlist_uri_list = [p['track']['uri'] for p in playlist['tracks']['items']]
+        self.playlistContent = playlist_uri_list
 
     def callQuery(self, query, numResults=1):
         """
