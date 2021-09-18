@@ -89,10 +89,11 @@ def incoming_sms():
     elif body[:9] == '$SETTIMER':
         try:
             old_timer = spotQueue.getPauseTimer()
-            new_timer = int(body[9:])
-            if new_timer < 10:
+            new_timer = float(body[9:])
+            if new_timer < 10 or new_timer > 600:
                 return text_back(
-                    f"Monitor period too low. Timer remains at {spotQueue.getPauseTimer} seconds.")
+                    f"Monitor period outside accepted range (10s to 600s)."\
+                    f" Timer remains at {spotQueue.getPauseTimer} seconds.")
 
             spotQueue.setPauseTimer(new_timer)
             return text_back(
