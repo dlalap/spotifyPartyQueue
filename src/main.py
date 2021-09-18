@@ -93,7 +93,7 @@ def incoming_sms():
             if new_timer < 10 or new_timer > 600:
                 return text_back(
                     f"Monitor period outside accepted range (10s to 600s)."\
-                    f" Timer remains at {spotQueue.getPauseTimer} seconds.")
+                    f" Timer remains at {old_timer} seconds.")
 
             spotQueue.setPauseTimer(new_timer)
             return text_back(
