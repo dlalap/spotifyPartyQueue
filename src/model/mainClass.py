@@ -234,7 +234,11 @@ class Spot(object):
             self.playlistContent.remove(track_url)
 
     def NextSong(self):
-        self.client.next_track()
+        try:
+            self.client.next_track()
+        except spotipy.SpotifyException as se:
+            self.authenticate()
+            self.client.next_track()
 
     def SayHi(self):
         print('Hello!')
@@ -274,10 +278,14 @@ class Spot(object):
         return message
 
     def addSongsToPlaylist(self, songs):
-        self.sp.user_playlist_add_tracks(
-                self.username, self.playlist, [songs]
-                )
-        self.playlistContent.append(songs)
+        try:
+            self.sp.user_playlist_add_tracks(
+                    self.username, self.playlist, [songs]
+                    )
+            self.playlistContent.append(songs)
+        except spotipy.SpotifyException as se:
+            self.authenticate()
+            self.addSongsToPlaylist(songs)
 
     def syncLocalPlaylist(self):
         # Check playlist for current songs
@@ -313,29 +321,29 @@ class Spot(object):
         'I'm feeling lucky' style search query.
             Adds first result to the playlist.
         """
-        results = self.sp.search(query, limit=1)
-        firstResult = self.getFirstResult(results)
-        song = firstResult['uri']
-        returnMessage = self.reportSongAddedToPlaylist(firstResult)
-        self.addSongsToPlaylist(song)
-        #songName = firstResult['name']
-        #songArtist = firstResult['artists'][0]['name']
-        #returnMessage = (
-        #    f"Adding {songName} by {songArtist} to playlist."
-        #)
-        #self.sp.user_playlist_add_tracks(
-        #    self.username, self.playlist, [song]
-        #)
-        return firstResult
- 
+        try:
+            results = self.sp.search(query, limit=1)
+            firstResult = self.getFirstResult(results)
+            song = firstResult['uri']
+            returnMessage = self.reportSongAddedToPlaylist(firstResult)
+            self.addSongsToPlaylist(song)
+            return firstResult
+        except spotipy.SpotifyException as se:
+            self.authenticate()
+            return self.singleQuery(query)
+
     def multiQuery(self, query, limit):
         """
         Lists results up to number defined by limit.
         Result list sent to user so user can choose based on list.
         """
-        results = self.sp.search(query, limit)
-        resultLists = results['tracks']['items']
-        return resultLists
+        try:
+            results = self.sp.search(query, limit)
+            resultLists = results['tracks']['items']
+            return resultLists
+        except spotipy.SpotifyException as se:
+            self.authenticate()
+            return self.multiQuery(query, limit)
 
     def listAllArtistsInResult(self, result):
         """
