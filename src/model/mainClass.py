@@ -34,7 +34,8 @@ class Spot(object):
         self.songMonitorActive = False
         self.timerActive = False
         self.playlistContent = []
-        self.t = Timer(10.0, self.monitorForCurrentSongOnQueue)
+        self.pause_timer_length = 10.0
+        self.t = Timer(self.pause_timer_length, self.monitorForCurrentSongOnQueue)
         self.authenticate()
         self.syncLocalPlaylist()
 
@@ -195,8 +196,14 @@ class Spot(object):
 
     def restartMonitor(self):
         if self.songMonitorActive:
-            self.t = Timer(10.0, self.monitorForCurrentSongOnQueue)
+            self.t = Timer(self.pause_timer_length, self.monitorForCurrentSongOnQueue)
             self.t.start()
+
+    def setPauseTimer(self, new_pause_length):
+        self.pause_timer_length = new_pause_length
+
+    def getPauseTimer(self):
+        return self.pause_timer_length
 
     def toggleSongMonitor(self):
         try:

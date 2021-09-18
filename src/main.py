@@ -40,6 +40,11 @@ def log_user(from_number):
         name = f"Friend_{from_number}"
         users[from_number] = User(name, from_number)
 
+def text_back(message):
+    resp = MessagingResponse()
+    resp.message(message)
+    return str(resp)
+
 @app.route("/sms", methods=['GET', 'POST'])
 def incoming_sms():
     """Send a dynamic reply to an incoming text message"""
@@ -64,17 +69,43 @@ def incoming_sms():
     resp = None
     respMessage = None
 
-    # Handle controls
+    # Handle controls      
+
     if body == '$NEXT':
         spotQueue.NextSong()
         msg = "Playing next song in queue!"
-        resp = MessagingResponse()
-        resp.message(msg)
-        return str(resp)
+        return text_back(msg)
+
+    elif body == '$TOGGLETIMER':
+        monitorActive = spotQueue.toggleSongMonitor()
+        
+        if monitorActive:
+            msg = "Song monitor is active. Removing current playbacks from queue."
+        else:
+            msg = "Song monitor inactive."
+
+        return text_back(msg)
+
+    elif body[:9] == '$SETTIMER':
+        try:
+            old_timer = spotQueue.getPauseTimer()
+            new_timer = int(body[9:])
+            if new_timer < 10:
+                return text_back(
+                    f"Monitor period too low. Timer remains at {spotQueue.getPauseTimer} seconds.")
+
+            spotQueue.setPauseTimer(new_timer)
+            return text_back(
+                f'Setting monitor to check every {new_timer} seconds\n'
+                f' (previously {old_timer} seconds).'
+            )
+
+        except ValueError as ve:
+            return text_back(f"Could not set timer. ValueError: {ve}")
+
     else:
-        
-        
         # if user already searched for results, return first 5 results
+
         # SHOW FIRST FIVE RESULTS
         if currentUser.get_search_results() is not None:
             if body == "0":
@@ -124,9 +155,6 @@ def incoming_sms():
         resp.message(msg)
         return str(resp)
 
-
-    # return report_song_added_to_playlist(resp)
-   
 
 def report_song_added_to_playlist(response_dict):
     if response_dict is None:
