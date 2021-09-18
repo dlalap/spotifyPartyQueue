@@ -201,6 +201,9 @@ class Spot(object):
 
     def setPauseTimer(self, new_pause_length):
         self.pause_timer_length = new_pause_length
+        if self.songMonitorActive:
+            self.t.cancel()
+            self.restartMonitor()
 
     def getPauseTimer(self):
         return self.pause_timer_length
