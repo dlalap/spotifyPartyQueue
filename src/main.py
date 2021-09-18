@@ -96,7 +96,7 @@ def incoming_sms():
 
             spotQueue.setPauseTimer(new_timer)
             return text_back(
-                f'Setting monitor to check every {new_timer} seconds\n'
+                f'Setting monitor to check every {new_timer} seconds' \
                 f' (previously {old_timer} seconds).'
             )
 
