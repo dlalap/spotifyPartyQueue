@@ -7,8 +7,6 @@ import spotipy as spotipy
 import spotipy.util as util
 from threading import Timer
 
-#%% Start Interactive
-print('hello')
 #%%
 class Spot(object):
     def __init__(self, username=None, scope=None, playlist=None):

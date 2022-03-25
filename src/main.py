@@ -1,13 +1,22 @@
-from flask import Flask, request, redirect, session
+from flask import Flask
+from flask import jsonify
+from flask import request
+from flask import redirect
+from flask import session
+from flask_cors import CORS
 from twilio.twiml.messaging_response import MessagingResponse
 from model.mainClass import Spot
 from model.users import User
 import json
+import datetime as dt
 
 app = Flask(__name__)
+CORS(app)
+
 app.secret_key = "super secret key"
 spotQueue = Spot()
 users = {}
+history = []
 
 @app.route("/", methods=['GET', 'POST'])
 def hello():
@@ -33,6 +42,26 @@ def hello():
 
     # return str(resp)
         
+@app.route("/ping", methods=["GET"])
+def ping():
+    return jsonify({'message': 'PONG'})
+
+@app.route("/get_current_list", methods=["GET"])
+def get_list():
+    return jsonify({'message': spotQueue.playlistContent})
+
+@app.route("/get_request_history", methods=["GET"])
+def get_history():
+    return jsonify(history)
+
+@app.route("/remove_song", methods=["POST"])
+def remove_song():
+    pass
+
+@app.route("/blacklist_user", methods=["POST"])
+def blacklist_user():
+    pass
+
 def log_user(from_number):
     if from_number in users:
         name = users[from_number]
@@ -40,10 +69,34 @@ def log_user(from_number):
         name = f"Friend_{from_number}"
         users[from_number] = User(name, from_number)
 
+def log_entry(user, selected_song):
+    date = dt.datetime.now()
+    songUri = selected_song['uri']
+    songName = selected_song['name']
+    songArtists = spotQueue.listAllArtistsInResult(selected_song)
+    userPhone = user.phoneNumber
+    userId = user.id
+
+    content = {}
+    content['date'] = str(date)
+    content['data'] = {
+        'userPhone': userPhone,
+        'userId': userId,
+        'songUri': songUri,
+        'songName': songName,
+        'songArtists': songArtists
+    }
+    history.append(content)
+
 def text_back(message):
     resp = MessagingResponse()
     resp.message(message)
     return str(resp)
+
+@app.route("/testwrite", methods=['GET'])
+def test_log():
+    """Test write to disk"""
+
 
 @app.route("/sms", methods=['GET', 'POST'])
 def incoming_sms():
@@ -127,6 +180,7 @@ def incoming_sms():
                     msg = f"Adding {songName} by {songArtists} to the playlist."
                     resp = MessagingResponse()
                     resp.message(msg)
+                    log_entry(currentUser, selected)
                     currentUser.clear_search_results()
                     currentUser.set_stage(0)
                     return str(resp)
